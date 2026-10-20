@@ -1,0 +1,79 @@
+# Lesson 1 — CI
+# Concepts: on / jobs / steps / checkout / setup-* / parallel jobs / concurrency
+#
+# GitHub runs this file on every push and pull request. Each job is a fresh
+# Ubuntu VM. Jobs in this file run in parallel unless you add `needs:`.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Lets you click "Run workflow" on the Actions tab without pushing a commit.
+  workflow_dispatch:
+
+# One run per branch. A new push cancels the previous run on that branch.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: this workflow only needs to read the repo.
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: build api
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Api1
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore and build
+        run: dotnet build -c Release --verbosity minimal
+
+  web:
+    name: build web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Web1
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No package-lock.json in Web1, so npm ci would fail. Dockerfile uses
+      # npm install too.
+      - name: Install and build
+        env:
+          NEXT_TELEMETRY_DISABLED: 1
+        run: |
+          npm install
+          npm run build
+
+  k8s:
+    name: validate k8s manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # kubeconform checks YAML against the Kubernetes OpenAPI schema.
+      # It does not talk to your k3s cluster — this is client-side only.
+      - name: Install kubeconform
+        run: |
+          curl -sSL "https://github.com/yannh/kubeconform/releases/download/v0.6.7/kubeconform-linux-amd64.tar.gz" \
+            | tar -xz
+          sudo mv kubeconform /usr/local/bin/
+
+      - name: Validate k8s/lab.yml
+        run: kubeconform -strict -summary -verbose k8s/lab.yml

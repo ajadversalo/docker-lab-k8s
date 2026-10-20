@@ -1,0 +1,104 @@
+name: docker-lab-k8s
+
+# Four Linux hosts on 172.30.0.0/24. Swarm (vm1–vm3) can stay up:
+# this lab never binds 80, 8080, or SSH 2222–2224.
+# Guide: k8s/README.md
+#
+#   vm4 = nginx (incoming traffic) — does not join Kubernetes
+#   vm5 = k3s server, runs pods
+#   vm6 = k3s agent, runs pods
+#   vm7 = k3s agent, hot spare (joined, empty until a node dies)
+
+x-app-vm: &app-vm
+  build: ./prod-host
+  image: docker-lab-k8s-linux
+  privileged: true
+  cgroup: host
+  tmpfs:
+    - /run
+    - /run/lock
+    - /tmp
+  restart: unless-stopped
+  networks:
+    lab:
+
+services:
+  vm4:
+    build:
+      context: .
+      dockerfile: k8s/door.Dockerfile
+    image: docker-lab-k8s-door
+    container_name: vm4
+    hostname: vm4
+    privileged: true
+    cgroup: host
+    tmpfs:
+      - /run
+      - /run/lock
+      - /tmp
+    ports:
+      - "2225:22"
+      - "90:80"
+      - "8090:8080"
+    networks:
+      lab:
+        ipv4_address: 172.30.0.14
+    restart: unless-stopped
+
+  vm5:
+    <<: *app-vm
+    container_name: vm5
+    hostname: vm5
+    ports:
+      - "2226:22"
+      - "92:80"
+      - "8092:8080"
+    volumes:
+      - vm5-k3s-data:/var/lib/rancher/k3s
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    networks:
+      lab:
+        ipv4_address: 172.30.0.15
+
+  vm6:
+    <<: *app-vm
+    container_name: vm6
+    hostname: vm6
+    ports:
+      - "2227:22"
+      - "91:80"
+      - "8091:8080"
+    volumes:
+      - vm6-k3s-data:/var/lib/rancher/k3s
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    networks:
+      lab:
+        ipv4_address: 172.30.0.16
+
+  vm7:
+    <<: *app-vm
+    container_name: vm7
+    hostname: vm7
+    ports:
+      - "2228:22"
+      - "93:80"
+      - "8093:8080"
+    volumes:
+      - vm7-k3s-data:/var/lib/rancher/k3s
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    networks:
+      lab:
+        ipv4_address: 172.30.0.17
+
+networks:
+  lab:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+          gateway: 172.30.0.1
+
+volumes:
+  vm5-k3s-data:
+  vm6-k3s-data:
+  vm7-k3s-data:

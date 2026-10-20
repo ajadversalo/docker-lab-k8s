@@ -1,0 +1,12 @@
+# .NET
+**/bin/
+**/obj/
+*.user
+
+# Node / Next.js
+**/node_modules/
+**/.next/
+
+# OS
+Thumbs.db
+Desktop.ini

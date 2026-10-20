@@ -1,0 +1,14 @@
+@Api1_HostAddress = http://localhost:8080
+
+GET {{Api1_HostAddress}}/health
+Accept: application/json
+
+###
+
+GET {{Api1_HostAddress}}/api/items
+Accept: application/json
+
+###
+
+GET {{Api1_HostAddress}}/api/items/1
+Accept: application/json

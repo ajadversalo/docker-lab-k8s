@@ -1,0 +1,10 @@
+
+============================================================
+  Linux host
+  PuTTY/SSH the same way you would at work.
+
+  Login:  lab / lab   (local training only)
+
+  Kubernetes lab (vm4–vm7). Swarm is a different folder.
+  Guide: k8s/README.md in the docker-lab-k8s repo
+============================================================

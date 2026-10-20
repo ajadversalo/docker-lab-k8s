@@ -1,0 +1,2 @@
+*.sh text eol=lf
+prod-host/entrypoint.sh text eol=lf

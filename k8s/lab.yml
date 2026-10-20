@@ -35,7 +35,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
         - name: api
-          image: ghcr.io/ajadversalo/docker-lab/api:latest
+          image: ghcr.io/ajadversalo/docker-lab-k8s/api:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: INSTANCE
@@ -87,7 +87,7 @@ spec:
               topologyKey: kubernetes.io/hostname
       containers:
         - name: web
-          image: ghcr.io/ajadversalo/docker-lab/web:latest
+          image: ghcr.io/ajadversalo/docker-lab-k8s/web:latest
           imagePullPolicy: IfNotPresent
           env:
             - name: PORT

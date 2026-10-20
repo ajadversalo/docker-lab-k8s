@@ -74,7 +74,7 @@ k3s is not installed yet. Before you install it, stop the Docker apps so ports 8
 docker rm -f web api
 ```
 
-Images in use: `ghcr.io/ajadversalo/docker-lab/web:latest` and `ghcr.io/ajadversalo/docker-lab/api:latest` (both on GHCR). Docker storage on these VMs is `vfs` because compose does not mount `/var/lib/docker`.
+Images in use: `ghcr.io/ajadversalo/docker-lab-k8s/web` and `ghcr.io/ajadversalo/docker-lab-k8s/api` (GHCR, built by the `images` workflow). Docker storage on these VMs is `vfs` because compose does not mount `/var/lib/docker`.
 
 ---
 
@@ -175,7 +175,9 @@ vm5 `/tmp` is tmpfs. Copy to `/home/lab`, not `/tmp`.
 
 ## 6. Images on the cluster
 
-Pods pull `ghcr.io/ajadversalo/docker-lab/web:latest` and `ghcr.io/ajadversalo/docker-lab/api:latest`. Both tags exist on GHCR when this lab starts. k3s pulls them into containerd; you do not `ctr import`.
+Pods pull `ghcr.io/ajadversalo/docker-lab-k8s/web` and `ghcr.io/ajadversalo/docker-lab-k8s/api`. The `images` workflow pushes those tags. k3s pulls them into containerd; you do not `ctr import`.
+
+The `images` workflow deploy job copies this file onto vm5 and `kubectl apply`s it with the commit's `sha-` tag.
 
 If a pull is `denied`, the package is still private. Make it public or create a pull secret on **vm5**:
 

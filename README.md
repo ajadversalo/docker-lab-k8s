@@ -67,4 +67,4 @@ Learning workflows live in [`.github/`](.github/README.md).
 | Workflow | What it does |
 | --- | --- |
 | `ci` | Build Api1 + Web1, validate `k8s/lab.yml` |
-| `images` | Build Docker images; push to GHCR from `main` |
+| `images` | Build Docker images, push to GHCR from `main`, deploy to vm5 |

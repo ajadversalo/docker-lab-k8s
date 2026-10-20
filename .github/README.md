@@ -5,7 +5,7 @@ Two workflows. Read them in this order.
 | File | What it teaches | When it runs |
 | --- | --- | --- |
 | [workflows/ci.yml](workflows/ci.yml) | jobs, steps, setup actions, parallel work, concurrency | every push / PR |
-| [workflows/images.yml](workflows/images.yml) | matrix, GHCR login, build vs push, path filters | app or Dockerfile changes on main / PR |
+| [workflows/images.yml](workflows/images.yml) | matrix, GHCR, then deploy to vm5 | app or Dockerfile changes on main / PR |
 
 ## How to see a run
 
@@ -19,14 +19,9 @@ To run without a code change: **Actions → ci → Run workflow**.
 
 `ci.yml` compiles Api1 (dotnet 8) and Web1 (Next.js 15) and schema-checks `k8s/lab.yml`. It never talks to vm4–vm7. Failures here mean the source does not build or the manifest is invalid YAML/schema.
 
-`images.yml` builds the same Dockerfiles you use on the VMs. On a pull request it only builds. On `main` it pushes:
+`images.yml` builds the Dockerfiles, pushes them to GHCR on `main`, then a **deploy** job on a self-hosted runner copies `k8s/lab.yml` onto vm5 and runs `kubectl apply`.
 
-- `ghcr.io/ajadversalo/docker-lab-k8s/api:latest` (and `sha-<short>`)
-- `ghcr.io/ajadversalo/docker-lab-k8s/web:latest` (and `sha-<short>`)
-
-The first package may be private. In the GHCR package settings, set visibility to public if k3s should pull without a secret.
-
-`k8s/lab.yml` still uses `ghcr.io/ajadversalo/docker-lab/web:latest` and `.../api:latest`. Change those image lines when you want this repo's builds to land on the cluster.
+GitHub's Ubuntu runners cannot see 172.30.0.15. Register a Windows runner on this PC: repo **Settings → Actions → Runners → New self-hosted runner**, label `docker-lab-k8s`. Docker Desktop and vm5 must be up.
 
 ## Things to try next
 
@@ -35,4 +30,4 @@ After you have watched a green `ci` run:
 1. Break `Api1/Program.cs` on a branch, open a PR, watch `build api` go red.
 2. Add a path filter on the `k8s` job so it only runs when `k8s/**` changes (`dorny/paths-filter`).
 3. Add a job that `docker compose -f docker-compose.yml config` so Compose YAML is checked too.
-4. Point `k8s/lab.yml` at `ghcr.io/ajadversalo/docker-lab-k8s/api:sha-...` and apply on vm5.
+4. Register a self-hosted runner labeled `docker-lab-k8s` so the deploy job runs after each image push.

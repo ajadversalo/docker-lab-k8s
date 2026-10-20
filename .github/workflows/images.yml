@@ -1,14 +1,9 @@
-# Lesson 2 — build images and push to GHCR
+# Lesson 2 — build images, push to GHCR, roll them onto vm5
 # Concepts: matrix / permissions / GITHUB_TOKEN / docker/build-push-action /
-#           build on PR, push only from main
+#           needs / self-hosted runner
 #
-# Images land at:
-#   ghcr.io/ajadversalo/docker-lab-k8s/api
-#   ghcr.io/ajadversalo/docker-lab-k8s/web
-#
-# k8s/lab.yml still pulls ghcr.io/ajadversalo/docker-lab/{api,web}:latest
-# (the Swarm sibling). Point lab.yml at these tags when you want this repo
-# to feed the cluster.
+# GitHub-hosted ubuntu-latest cannot reach vm5 (Docker Desktop on this PC).
+# The deploy job runs on a self-hosted runner labeled docker-lab-k8s.
 
 name: images
 
@@ -57,7 +52,8 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
           tags: |
-            type=sha,prefix=sha-
+            type=raw,value=${{ github.sha }}
+            type=sha,prefix=sha-,format=short
             type=raw,value=latest,enable={{is_default_branch}}
 
       # GITHUB_TOKEN can push to ghcr.io/<owner>/<repo>/...
@@ -79,3 +75,45 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: deploy to lab vms
+    needs: docker
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, docker-lab-k8s]
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Apply images on vm5
+        shell: powershell
+        run: |
+          $ErrorActionPreference = "Stop"
+          $tag = "sha-" + "${{ github.sha }}".Substring(0, 7)
+          $repo = "${{ github.repository }}".ToLower()
+          $api = "ghcr.io/$repo/api:$tag"
+          $web = "ghcr.io/$repo/web:$tag"
+          Write-Host "Deploying $api and $web"
+
+          docker inspect -f "{{.State.Running}}" vm5 2>$null | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw "vm5 is not running" }
+
+          $raw = Get-Content -Path "k8s/lab.yml" -Raw
+          $raw = [regex]::Replace($raw, "image:\s+ghcr\.io/\S+/api:\S+", "image: $api")
+          $raw = [regex]::Replace($raw, "image:\s+ghcr\.io/\S+/web:\S+", "image: $web")
+          $staged = Join-Path $env:TEMP "docker-lab-k8s-lab.yml"
+          $utf8 = New-Object System.Text.UTF8Encoding $false
+          [System.IO.File]::WriteAllText($staged, $raw, $utf8)
+
+          docker cp $staged vm5:/home/lab/lab.yml
+          if ($LASTEXITCODE -ne 0) { throw "docker cp to vm5 failed" }
+
+          docker exec vm5 sudo chown lab:lab /home/lab/lab.yml
+          if ($LASTEXITCODE -ne 0) { throw "chown failed" }
+          docker exec vm5 sudo k3s kubectl apply -f /home/lab/lab.yml
+          if ($LASTEXITCODE -ne 0) { throw "kubectl apply failed" }
+          docker exec vm5 sudo k3s kubectl rollout status deployment/api --timeout=360s
+          if ($LASTEXITCODE -ne 0) { throw "api rollout failed" }
+          docker exec vm5 sudo k3s kubectl rollout status deployment/web --timeout=360s
+          if ($LASTEXITCODE -ne 0) { throw "web rollout failed" }
+          docker exec vm5 sudo k3s kubectl get pods -o wide
+          docker exec vm5 sudo k3s kubectl get deploy

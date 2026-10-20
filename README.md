@@ -26,6 +26,7 @@ Sibling of `C:\repos\docker-lab` (Swarm vm1–vm3). This folder is the k3s lab. 
 
 Full walkthrough: **[k8s/README.md](k8s/README.md)**
 
+
 ```powershell
 .\k8s\up.ps1
 ```
